@@ -47,36 +47,40 @@ while(True):
     # Find the largest contour
     largest_contour = None
     largest_contour_area = 0
-    for c in contours:
-        # Check if the contour has already been processed
-        if any(np.array_equal(c, pc) for pc in processed_contours):
-            continue
+    try:
+        for c in contours:
+            # Check if the contour has already been processed
+            if any(np.array_equal(c, pc) for pc in processed_contours):
+                continue
 
-        # Find the area of the contour
-        area = cv2.contourArea(c)
+            # Find the area of the contour
+            area = cv2.contourArea(c)
 
-        # Update the largest contour if necessary
-        if area > largest_contour_area:
-            largest_contour = c
-            largest_contour_area = area
+            # Update the largest contour if necessary
+            if area > largest_contour_area:
+                largest_contour = c
+                largest_contour_area = area
 
-    # Draw a line from the bottom center to the center of the largest contour
-    if largest_contour is not None:
-        # Find the center of the largest contour
-        M = cv2.moments(largest_contour)
-        if M["m00"] != 0:
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
-            center = (cx, cy)
+        # Draw a line from the bottom center to the center of the largest contour
+        if largest_contour is not None:
+            # Find the center of the largest contour
+            M = cv2.moments(largest_contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                center = (cx, cy)
 
-            # Draw a line from the bottom center to the contour center
-            cv2.line(sand, bottom_center, center, (255, 0, 0), 3)
+                # Draw a line from the bottom center to the contour center
+                cv2.line(sand, bottom_center, center, (255, 0, 0), 3)
 
-        # Draw the largest contour on the sand image
-        cv2.drawContours(sand, [largest_contour], -1, (0,255,0), 3)
+            # Draw the largest contour on the sand image
+            cv2.drawContours(sand, [largest_contour], -1, (0,255,0), 3)
 
-        # Add the largest contour to the list of processed contours
-        processed_contours.append(largest_contour)
+            # Add the largest contour to the list of processed contours
+            processed_contours.append(largest_contour)
+        
+    except:
+        pass
 
     # Display the resulting seg_frame
     cv2.imshow('seg_frame',sand)

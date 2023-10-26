@@ -59,6 +59,7 @@ def Dodge(frame):
     results_seg = model3(frame)
     object_mask_np = results_seg[0].plot_mask_only()
     processed_contours = []
+    decision = "nothing"
     #Define range of grass color in HSV format
     if object_mask_np.shape[-1] == 1:
         object_mask_np = cv2.cvtColor(object_mask_np, cv2.COLOR_GRAY2BGR)
@@ -109,10 +110,10 @@ def Dodge(frame):
     overlap_r = False
     for i in range(50):
         if people[int(480*0.8)][320+i][2] in range(50,255):
-            overlap_l = True
+            overlap_r = True
             break
         if people[int(480*0.8)][320-i][2] in range(50,255):
-            overlap_r = True
+            overlap_l = True
             break
 
     cv2.line(people, (0, int(480*0.8)), (640, int(480*0.8)),(255, 0, 0), 3)
@@ -242,6 +243,7 @@ def main(opt):
                 cv2.imshow("following", dodge_people)
                 cv2.imshow("",frame)
                 print(f"Grass Center ({GrassCenter}")
+                print(f"leaf ({leaf_x}, {leaf_y})")
                 print(f"sliced ({sliced_x}, {sliced_y})")
                 key = cv2.waitKey(1)
                 if key == ord("q"):
@@ -310,10 +312,10 @@ if __name__=="__main__":
     parser.add_argument('--seg_path', type=str, help='path of segmentation model', default=r"C:\Users\tewwa\FeedbackSegment\fb\last.pt", required=False)
     parser.add_argument('--follow', type=str, help='path of segmentation model', default="yolov8n-seg.pt", required=False)
     # parser.add_argument('--video', type=int, help='path of video or video device or http', default=0)
-    parser.add_argument('--video', type=str, help='path of video or video device or http', default="https://10.100.6.74:8080/video", required=False)
+    parser.add_argument('--video', type=str, help='path of video or video device or http', default="https://192.168.222.145:8080/video", required=False)
     parser.add_argument('--show_img', type=int, help='if show image set 1 else 0', default=1, required=False)
-    parser.add_argument('--x_shape', type=int, help='screen range in x axis', default=1920, required=False)
-    parser.add_argument('--y_shape', type=int, help='screen range in y axis', default=1080, required=False)
+    parser.add_argument('--x_shape', type=int, help='screen range in x axis', default=640, required=False)
+    parser.add_argument('--y_shape', type=int, help='screen range in y axis', default=480, required=False)
     #parser.add_argument()
     opt = parser.parse_args()
 

@@ -44,7 +44,7 @@ def track_det(frame, x_shape, y_shape):
     global n_try
     global track_history
     global best_track_id
-
+    global results_seg
     # Run YOLOv8 tracking on the frame, persisting tracks between frames
     results_det = model1.track(frame, persist=True)
     results_seg = model2(frame)
@@ -54,19 +54,16 @@ def track_det(frame, x_shape, y_shape):
     
     return annotated_frame, object_mask_np, leaf_x, leaf_y
 
-def Dodge(frame):
-    # results_seg = model2(frame)
-    results_seg = model3(frame)
+def Dodge(frame, x_shape, y_shape):
     object_mask_np = results_seg[0].plot_mask_only()
-    processed_contours = []
     decision = "nothing"
     #Define range of grass color in HSV format
     if object_mask_np.shape[-1] == 1:
         object_mask_np = cv2.cvtColor(object_mask_np, cv2.COLOR_GRAY2BGR)
     hsv = cv2.cvtColor(object_mask_np, cv2.COLOR_BGR2HSV)
     # Define range of grass color in HSV format
-    lower_people = np.array([0, 50, 50])
-    upper_people = np.array([0, 210, 210])
+    lower_people = np.array([0, 200, 100])
+    upper_people = np.array([20, 226, 135])
 
     # Create a mask for the people color range
     mask = cv2.inRange(hsv, lower_people, upper_people)
@@ -74,56 +71,17 @@ def Dodge(frame):
     # Apply the mask to the original image to extract only the people color
     people = cv2.bitwise_and(object_mask_np, object_mask_np, mask=mask)
 
-    # Convert the people color image to grayscale
-    gray = cv2.cvtColor(people, cv2.COLOR_BGR2GRAY)
-
-    # Apply Gaussian blur to the grayscale image
-    blur = cv2.GaussianBlur(gray,(5,5),0)
-
-    # Apply adaptive thresholding to the blurred image
-    thresh_img = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
-
-    # Find contours in the thresholded image
-    contours =  cv2.findContours(thresh_img,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)[-2]
-
-    # Find the bottom center point of the frame
-    height, width = object_mask_np.shape[:2]
-    bottom_center = (int(width/2), height)
-
-    # Find the largest contour
-    largest_contour = None
-    largest_contour_area = 0
-    for c in contours:
-        # Check if the contour has already been processed
-        if any(np.array_equal(c, pc) for pc in processed_contours):
-            continue
-
-        # Find the area of the contour
-        area = cv2.contourArea(c)
-
-        # Update the largest contour if necessary
-        if area > largest_contour_area:
-            largest_contour = c
-            largest_contour_area = area
-
     overlap_l = False
     overlap_r = False
     for i in range(50):
-        if people[int(480*0.8)][320+i][2] in range(50,255):
+        if people[int(y_shape*0.8)][int(x_shape/2)+i][2] in range(50,255):
             overlap_r = True
             break
-        if people[int(480*0.8)][320-i][2] in range(50,255):
+        if people[int(y_shape*0.8)][int(x_shape/2)-i][2] in range(50,255):
             overlap_l = True
             break
 
-    cv2.line(people, (0, int(480*0.8)), (640, int(480*0.8)),(255, 0, 0), 3)
-
-    # Draw a line from the bottom center to the center of the largest contour
-    if largest_contour is not None:
-        cv2.drawContours(people, [largest_contour], -1, (0,255,0), 3)
-
-        # Add the largest contour to the list of processed contours
-        processed_contours.append(largest_contour)
+    cv2.line(people, (0, int(y_shape*0.8)), (x_shape, int(y_shape*0.8)),(255, 0, 0), 3)
 
     # Determine whether to turn left or right based on the overlap
     if not overlap_r and not overlap_l:
@@ -142,7 +100,6 @@ def Dodge(frame):
     return decision, people
 
 def StopAtGrass(frame):
-    results_seg = model2(frame)
     object_mask_np = results_seg[0].plot_mask_only()
     processed_contours = []
     #Define range of grass color in HSV format
@@ -214,10 +171,10 @@ def main(opt):
     # Loop through the video frames
     global model1
     global model2
-    global model3
+    # global model3
     model1 = YOLO(opt.det_path)
     model2 = YOLO(opt.seg_path)
-    model3 = YOLO(opt.follow)
+    # model3 = YOLO(opt.dodge)
 
     # Open the video file
     video_path = opt.video #camera
@@ -235,13 +192,13 @@ def main(opt):
             color_frame = annotated_frame.copy()
             sliced_x, sliced_y = get_control(leaf_x, leaf_y, opt.x_shape, opt.y_shape)
             GrassStop, GrassCenter = StopAtGrass(frame)
-            comm, dodge_people = Dodge(frame)
+            comm, dodge_people = Dodge(frame, opt.x_shape, opt.y_shape)
             
             if opt.show_img:
-                # cv2.imshow("YOLOv8 Tracking", annotated_frame)
-                #cv2.imshow("Grass Segmentation", GrassStop)
+                cv2.imshow("YOLOv8 Tracking", annotated_frame)
+                cv2.imshow("Grass Segmentation", GrassStop)
                 cv2.imshow("following", dodge_people)
-                cv2.imshow("",frame)
+                #cv2.imshow("",frame)
                 print(f"Grass Center ({GrassCenter}")
                 print(f"leaf ({leaf_x}, {leaf_y})")
                 print(f"sliced ({sliced_x}, {sliced_y})")
@@ -288,8 +245,8 @@ def main(opt):
                 print(f"leaf ({leaf_x}, {leaf_y})")
                 
                 cv2.putText(annotated_frame, f"leaf ({leaf_x}, {leaf_y})", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                cv2.imshow("mask segm", object_mask_np)
-                cv2.imshow("segm", annotated_frame)
+                # cv2.imshow("mask segm", object_mask_np)
+                # cv2.imshow("segm", annotated_frame)
                 # Break the loop if 'q' is pressed
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     # Release the keyboard hook when the program exits.
@@ -310,12 +267,12 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--det_path', type=str, help='path of detection model', default=r"C:\Users\tewwa\FeedbackSegment\fb\best.pt", required=False)
     parser.add_argument('--seg_path', type=str, help='path of segmentation model', default=r"C:\Users\tewwa\FeedbackSegment\fb\last.pt", required=False)
-    parser.add_argument('--follow', type=str, help='path of segmentation model', default="yolov8n-seg.pt", required=False)
-    # parser.add_argument('--video', type=int, help='path of video or video device or http', default=0)
+    parser.add_argument('--dodge', type=str, help='path of segmentation model', default="yolov8n-seg.pt", required=False)
+    #parser.add_argument('--video', type=int, help='path of video or video device or http', default=0)
     parser.add_argument('--video', type=str, help='path of video or video device or http', default="https://192.168.222.145:8080/video", required=False)
     parser.add_argument('--show_img', type=int, help='if show image set 1 else 0', default=1, required=False)
-    parser.add_argument('--x_shape', type=int, help='screen range in x axis', default=640, required=False)
-    parser.add_argument('--y_shape', type=int, help='screen range in y axis', default=480, required=False)
+    parser.add_argument('--x_shape', type=int, help='screen range in x axis', default=480, required=False)
+    parser.add_argument('--y_shape', type=int, help='screen range in y axis', default=640, required=False)
     #parser.add_argument()
     opt = parser.parse_args()
 
